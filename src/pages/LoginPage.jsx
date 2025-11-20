@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { users } from "../data/users";
+import { loginUser } from "../services/api"; // Your real API function
 import { Mail, Lock, Eye, EyeOff, AlertCircle, LogIn, Film } from "lucide-react";
 
 const LoginPage = () => {
@@ -16,22 +16,29 @@ const LoginPage = () => {
     setError("");
     setLoading(true);
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      // Call real API
+      const userData = await loginUser({ email, password });
 
-    const user = users.find((u) => u.email === email && u.password === password);
+      // Save user + token to localStorage
+      localStorage.setItem("user", JSON.stringify(userData));
 
-    if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
-      setLoading(false);
-      if (user.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/");
+      // Optional: Save token separately if needed
+      if (userData.token) {
+        localStorage.setItem("token", userData.token);
       }
-    } else {
+
+      // Success! Navigate based on role
+      if (userData.role === "admin") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    } catch (err) {
+      console.error("Login failed:", err);
+      setError(err.message || "Invalid email or password. Please try again.");
+    } finally {
       setLoading(false);
-      setError("Invalid email or password");
     }
   };
 
@@ -82,7 +89,7 @@ const LoginPage = () => {
 
             {/* Error Alert */}
             {error && (
-              <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300">
+              <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300 animate-shake">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
@@ -98,7 +105,8 @@ const LoginPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all backdrop-blur-sm"
+                  disabled={loading}
+                  className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all backdrop-blur-sm disabled:opacity-70"
                 />
               </div>
 
@@ -111,21 +119,27 @@ const LoginPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-12 pr-12 py-4 bg-white/10 border border-white/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all backdrop-blur-sm"
+                  disabled={loading}
+                  className="w-full pl-12 pr-12 py-4 bg-white/10 border border-white/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all backdrop-blur-sm disabled:opacity-70"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  disabled={loading}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
 
-              {/* Forgot Password */}
+              {/* Remember Me + Forgot Password */}
               <div className="flex justify-between items-center text-sm">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="checkbox checkbox-sm checkbox-primary" />
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm checkbox-primary border-white/40"
+                    disabled={loading}
+                  />
                   <span className="text-gray-300">Remember me</span>
                 </label>
                 <a href="#" className="text-purple-400 hover:text-purple-300 transition-colors">
@@ -140,11 +154,16 @@ const LoginPage = () => {
                 className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
               >
                 {loading ? (
-                  <span className="loading loading-spinner loading-sm"></span>
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Signing in...
+                  </>
                 ) : (
-                  <LogIn className="w-5 h-5" />
+                  <>
+                    <LogIn className="w-5 h-5" />
+                    Login
+                  </>
                 )}
-                {loading ? "Signing in..." : "Login"}
               </button>
             </form>
 
@@ -154,8 +173,6 @@ const LoginPage = () => {
               <span className="text-xs text-gray-400">OR</span>
               <div className="flex-1 h-px bg-white/20"></div>
             </div>
-
-          
 
             {/* Sign Up Link */}
             <p className="text-center mt-6 text-sm text-gray-300">
@@ -170,6 +187,18 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Optional: Add shake animation */}
+      <style jsx>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+          20%, 40%, 60%, 80% { transform: translateX(4px); }
+        }
+        .animate-shake {
+          animation: shake 0.5s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 };

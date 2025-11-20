@@ -1,12 +1,12 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { movies } from "../data/movies";
+import { getAllMovies } from "../services/api"; // Your API function
 import { Star, Search, Filter, Calendar, Clock, Film } from "lucide-react";
 
 const MovieCard = ({ movie }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Safe genre parsing
+  // Safe genre parsing (handles string or missing)
   const primaryGenre = movie.genre?.split(",")[0]?.trim() || "Unknown";
 
   // Genre-based gradient
@@ -15,22 +15,24 @@ const MovieCard = ({ movie }) => {
     Comedy: "from-yellow-400 to-amber-500",
     Drama: "from-purple-500 to-pink-600",
     SciFi: "from-cyan-400 to-blue-600",
+    "Sci-Fi": "from-cyan-400 to-blue-600",
     Horror: "from-gray-700 to-black",
     Romance: "from-pink-400 to-rose-500",
+    Thriller: "from-indigo-600 to-purple-700",
     default: "from-gray-600 to-gray-800",
   };
   const gradient = genreColors[primaryGenre] || genreColors.default;
 
-  // SAFE STAR RENDERING — NEVER CRASHES
+  // SAFE STAR RENDERING
   const renderStars = (rating) => {
     const numRating = parseFloat(rating);
     if (isNaN(numRating) || numRating < 0 || numRating > 10) {
       return <span className="text-xs text-gray-500">N/A</span>;
     }
 
-    const full = Math.floor(numRating);
-    const hasHalf = numRating - full >= 0.5;
-    const empty = 5 - Math.ceil(numRating);
+    const full = Math.floor(numRating / 2); // assuming rating is out of 10 → convert to 5 stars
+    const hasHalf = (numRating / 2) - full >= 0.5;
+    const empty = 5 - Math.ceil(numRating / 2);
 
     return (
       <div className="flex items-center gap-1">
@@ -38,7 +40,7 @@ const MovieCard = ({ movie }) => {
           <Star key={`full-${i}`} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
         ))}
         {hasHalf && (
-          <Star className="w-4 h-4 fill-yellow-400/50 text-yellow-400" />
+          <Star className="w-4 h-4 fill-yellow-400/50 bg-yellow-400/50 text-yellow-400" />
         )}
         {Array.from({ length: empty }).map((_, i) => (
           <Star key={`empty-${i}`} className="w-4 h-4 text-gray-600" />
@@ -58,13 +60,14 @@ const MovieCard = ({ movie }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link to={`/movie/${movie.id}`} className="block">
+      <Link to={`/movie/${movie._id || movie.id}`} className="block">
         {/* Poster */}
         <div className="relative aspect-[2/3] overflow-hidden">
           <img
-            src={movie.posterUrl}
+            src={movie.posterUrl || "https://via.placeholder.com/400x600?text=No+Image"}
             alt={movie.title}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60"></div>
 
@@ -97,7 +100,7 @@ const MovieCard = ({ movie }) => {
               <div className="flex items-center gap-3 text-xs text-gray-400">
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  {movie.releaseDate || "TBA"}
+                  {movie.releaseDate?.split("T")[0] || "TBA"}
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
@@ -134,27 +137,89 @@ const MovieCard = ({ movie }) => {
 };
 
 const AllMoviePage = () => {
+  const [movies, setMovies] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // SAFE GENRE LIST
-  const genres = useMemo(() => {
-    if (!Array.isArray(movies) || movies.length === 0) return ["All"];
-    const list = movies
-      .flatMap((m) => (m.genre ? m.genre.split(",").map((g) => g.trim()) : []))
-      .filter(Boolean);
-    return ["All", ...new Set(list)].sort();
+  // Fetch movies from API
+  useEffect(() => {
+    const fetchMovies = async () => {
+      try {
+        setLoading(true);
+        const data = await getAllMovies();
+        setMovies(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to fetch movies:", err);
+        setError("Failed to load movies. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMovies();
   }, []);
 
-  // SAFE FILTERED MOVIES
+  // Extract unique genres safely
+  const genres = useMemo(() => {
+    if (!Array.isArray(movies) || movies.length === 0) return ["All"];
+    const genreList = movies
+      .flatMap((m) =>
+        m.genre
+          ? m.genre.split(",").map((g) => g.trim())
+          : []
+      )
+      .filter(Boolean);
+    return ["All", ...new Set(genreList)].sort();
+  }, [movies]);
+
+  // Filter movies based on search and genre
   const filteredMovies = useMemo(() => {
     if (!Array.isArray(movies)) return [];
+
     return movies.filter((movie) => {
-      const matchesSearch = movie.title?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesGenre = selectedGenre === "All" || movie.genre?.includes(selectedGenre);
+      const matchesSearch = movie.title
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      const matchesGenre =
+        selectedGenre === "All" ||
+        movie.genre?.includes(selectedGenre);
+
       return matchesSearch && matchesGenre;
     });
-  }, [searchTerm, selectedGenre]);
+  }, [movies, searchTerm, selectedGenre]);
+
+  // Loading State
+  if (loading) {
+    return (
+      <div className="mt-16 min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-xl text-gray-300">Loading amazing movies...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error State
+  if (error) {
+    return (
+      <div className="mt-16 min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-2xl text-red-400 mb-4">Oops! Something went wrong</p>
+          <p className="text-gray-400">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl transition"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-16 min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black text-white py-8">
@@ -172,7 +237,6 @@ const AllMoviePage = () => {
         {/* Search & Filter */}
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 mb-10 shadow-2xl border border-white/20">
           <div className="flex flex-col md:flex-row gap-4">
-            {/* Search */}
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -184,7 +248,6 @@ const AllMoviePage = () => {
               />
             </div>
 
-            {/* Genre Filter */}
             <div className="relative">
               <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <select
@@ -206,7 +269,6 @@ const AllMoviePage = () => {
             </div>
           </div>
 
-          {/* Results Count */}
           <div className="mt-4 text-sm text-gray-300">
             Showing <span className="font-bold text-white">{filteredMovies.length}</span> of{" "}
             <span className="font-bold text-white">{movies.length}</span> movies
@@ -217,13 +279,13 @@ const AllMoviePage = () => {
         {filteredMovies.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
             {filteredMovies.map((movie) => (
-              <MovieCard key={movie.id} movie={movie} />
+              <MovieCard key={movie._id || movie.id} movie={movie} />
             ))}
           </div>
         ) : (
           <div className="text-center py-20">
             <Film className="w-20 h-20 mx-auto text-gray-600 mb-4" />
-            <p className="text-xl text-gray-400">No movies found.</p>
+            <p className="text-xl text-gray-400">No movies found matching your criteria.</p>
             <button
               onClick={() => {
                 setSearchTerm("");

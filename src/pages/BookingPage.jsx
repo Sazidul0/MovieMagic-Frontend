@@ -1,279 +1,259 @@
+// src/pages/BookingPage.jsx
 import React, { useState, useEffect } from "react";
-import { useParams, Navigate, Link } from "react-router-dom";
-import { movies } from "../data/movies";
-import { Calendar, Clock, MapPin, Ticket, ChevronLeft, X, Check } from "lucide-react";
+import { useParams, Navigate, useNavigate, Link } from "react-router-dom";
+import { getMovieById, createBooking, getBookedSeats } from "../services/api";
+import { Calendar, Clock, Ticket, ChevronLeft, AlertCircle, X } from "lucide-react"; // ← X WAS MISSING!
 import confetti from "canvas-confetti";
 
 const BookingPage = () => {
-  const { id } = useParams();
-  const movie = movies.find((m) => m.id === parseInt(id));
+  const { id: movieId } = useParams();
+  const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "null");
 
+  const [movie, setMovie] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [selectedSeats, setSelectedSeats] = useState([]);
-  const [selectedTime, setSelectedTime] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [bookedSeats, setBookedSeats] = useState([]);
 
-  // Mock showtimes with dates
-  const showtimes = [
-    { date: "2025-11-10", time: "10:00 AM" },
-    { date: "2025-11-10", time: "1:30 PM" },
-    { date: "2025-11-10", time: "4:45 PM" },
-    { date: "2025-11-11", time: "7:30 PM" },
-    { date: "2025-11-11", time: "10:15 PM" },
-  ];
-
-  // Seat layout: Rows A-F, 12 seats per row, aisle in middle
-  const rows = ["A", "B", "C", "D", "E", "F"];
+  const rows = ["A", "B", "C", "D", "E", "F", "G"];
   const seatsPerRow = 12;
-  const aisleStart = 5; // seats 6-7 are aisle
-
-  const bookedSeats = [3, 15, 27, 40, 52]; // Mock booked
+  const aisleAfter = 6;
 
   useEffect(() => {
-    if (showtimes.length > 0) {
-      setSelectedDate(showtimes[0].date);
-      setSelectedTime(showtimes[0].time);
-    }
-  }, []);
+    const fetchMovie = async () => {
+      try {
+        setLoading(true);
+        const data = await getMovieById(movieId);
+        setMovie(data);
 
-  if (!user) return <Navigate to="/login" />;
-  if (!movie) return <Navigate to="/movies" />;
+        if (data.showtimes?.length > 0) {
+          const first = data.showtimes[0];
+          setSelectedDate(first.date);
+          setSelectedTime(first.time);
+        }
+      } catch (err) {
+        setError("Failed to load movie.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMovie();
+  }, [movieId]);
 
-  const handleSeatClick = (seatId) => {
-    if (bookedSeats.includes(seatId)) return;
+  useEffect(() => {
+    if (!selectedDate || !selectedTime) return;
 
-    setSelectedSeats((prev) =>
-      prev.includes(seatId)
-        ? prev.filter((s) => s !== seatId)
-        : [...prev, seatId]
+    const fetchBookedSeats = async () => {
+      try {
+        const seats = await getBookedSeats(movieId, selectedDate, selectedTime);
+        setBookedSeats(seats || []);
+        setSelectedSeats([]);
+      } catch (err) {
+        console.error("Failed to fetch booked seats:", err);
+        setBookedSeats([]);
+      }
+    };
+
+    fetchBookedSeats();
+  }, [movieId, selectedDate, selectedTime]);
+
+  const getSeatLabel = (rowIdx, seatNum) => {
+    const adjusted = seatNum > aisleAfter ? seatNum - 1 : seatNum;
+    return `${rows[rowIdx]}${adjusted}`;
+  };
+
+  const handleSeatClick = (seatLabel) => {
+    if (bookedSeats.includes(seatLabel)) return;
+
+    setSelectedSeats(prev =>
+      prev.includes(seatLabel)
+        ? prev.filter(s => s !== seatLabel)
+        : [...prev, seatLabel]
     );
   };
 
-  const handleBooking = () => {
-    if (selectedSeats.length === 0) {
-      alert("Please select at least one seat!");
-      return;
-    }
+ // In your BookingPage.jsx → replace the handleBooking function with this:
+const handleBooking = async () => {
+  if (selectedSeats.length === 0) {
+    setError("Please select at least one seat!");
+    return;
+  }
 
-    // Confetti celebration
+  const bookingData = {
+    movie: movie._id,
+    bookingDate: selectedDate,   // ← This must be "bookingDate"
+    showtime: selectedTime,      // ← This must be "showtime"
+    seats: selectedSeats,
+    totalPrice: selectedSeats.length * 15,
+  };
+
+  try {
+    setError("");
+    await createBooking(bookingData);
+
     confetti({
-      particleCount: 100,
-      spread: 70,
+      particleCount: 200,
+      spread: 80,
       origin: { y: 0.6 },
+      colors: ["#a78bfa", "#ec4899", "#22d3ee", "#fbbf24"],
     });
 
-    setTimeout(() => {
-      alert(
-        `Booking confirmed!\nMovie: ${movie.title}\nDate: ${selectedDate}\nTime: ${selectedTime}\nSeats: ${selectedSeats
-          .map(getSeatLabel)
-          .join(", ")}\nTotal: $${selectedSeats.length * 15}`
-      );
-      // Reset
-      setSelectedSeats([]);
-    }, 500);
-  };
+    setTimeout(() => navigate("/bookings"), 1000);
+  } catch (err) {
+    console.error("Booking error:", err);
+    setError(err.message || "Booking failed. Try again.");
+  }
+};
+  if (!user) return <Navigate to="/login" replace />;
 
-  const getSeatLabel = (seatId) => {
-    const rowIndex = Math.floor(seatId / seatsPerRow);
-    const seatNum = (seatId % seatsPerRow) + 1;
-    return `${rows[rowIndex]}${seatNum}`;
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center">
+        <div className="text-3xl text-white animate-pulse">Loading showtime...</div>
+      </div>
+    );
+  }
 
-  const getSeatId = (row, num) => row * seatsPerRow + (num - 1);
+  if (!movie) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-20 h-20 text-red-500 mx-auto mb-4" />
+          <p className="text-2xl text-red-400">{error || "Movie not found"}</p>
+        </div>
+      </div>
+    );
+  }
 
   const totalPrice = selectedSeats.length * 15;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black text-white py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Link
-            to={`/movie/${movie.id}`}
-            className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            Back to Movie
-          </Link>
-          <div className="text-sm text-gray-400">
-            Logged in as <span className="font-semibold text-white">{user.name}</span>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black text-white py-8 px-4">
+      <div className="max-w-7xl mx-auto">
+        <Link to={`/movie/${movieId}`} className="inline-flex items-center gap-2 text-gray-300 hover:text-white mb-8">
+          <ChevronLeft /> Back to Movie
+        </Link>
+
+        <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 mb-10 text-center">
+          <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-pink-500">
+            {movie.title}
+          </h1>
+          <div className="flex justify-center gap-8 text-gray-300">
+            <span><Clock className="inline w-5 h-5" /> {movie.duration}</span>
+            <span><Ticket className="inline w-5 h-5" /> $15 per seat</span>
           </div>
         </div>
 
-        {/* Movie Info */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 mb-10 shadow-2xl border border-white/20">
-          <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
-            <img
-              src={movie.posterUrl}
-              alt={movie.title}
-              className="w-32 h-48 rounded-xl shadow-xl object-cover"
-            />
-            <div className="flex-1 text-center md:text-left">
-              <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-pink-500">
-                {movie.title}
-              </h1>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-gray-300">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {movie.duration}
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  Cinema Hall 1
-                </span>
-                <span className="badge badge-outline border-cyan-400 text-cyan-400">
-                  {movie.format || "2D"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Showtime Selector */}
+        <div className="mb-12">
+          <h2 className="text-3xl font-bold text-center mb-8">Select Showtime</h2>
+          <div className="flex flex-wrap justify-center gap-6">
+            {movie.showtimes?.map((slot) => {
+              const isActive = selectedDate === slot.date && selectedTime === slot.time;
+              const dateStr = new Date(slot.date).toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              });
 
-        {/* Showtime Selection */}
-        <div className="mb-10">
-          <h2 className="text-2xl font-bold mb-6 text-center">Select Showtime</h2>
-          <div className="flex flex-wrap justify-center gap-3">
-            {["2025-11-10", "2025-11-11", "2025-11-12"].map((date) => (
-              <button
-                key={date}
-                onClick={() => setSelectedDate(date)}
-                className={`px-5 py-3 rounded-xl font-medium transition-all ${
-                  selectedDate === date
-                    ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg"
-                    : "bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20"
-                }`}
-              >
-                {new Date(date).toLocaleDateString("en-US", {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-3 mt-4">
-            {showtimes
-              .filter((s) => s.date === selectedDate)
-              .map((slot) => (
+              return (
                 <button
-                  key={slot.time}
-                  onClick={() => setSelectedTime(slot.time)}
-                  className={`px-6 py-3 rounded-full font-medium transition-all flex items-center gap-2 ${
-                    selectedTime === slot.time
-                      ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-xl"
-                      : "bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20"
+                  key={`${slot.date}-${slot.time}`}
+                  onClick={() => {
+                    setSelectedDate(slot.date);
+                    setSelectedTime(slot.time);
+                  }}
+                  className={`px-10 py-6 rounded-2xl text-lg font-bold transition-all ${
+                    isActive
+                      ? "bg-gradient-to-r from-purple-600 to-pink-600 ring-4 ring-purple-400/50 shadow-2xl"
+                      : "bg-white/10 hover:bg-white/20 border border-white/20"
                   }`}
                 >
-                  <Clock className="w-4 h-4" />
-                  {slot.time}
+                  <div>{dateStr}</div>
+                  <div className="text-2xl">{slot.time}</div>
                 </button>
-              ))}
+              );
+            })}
           </div>
         </div>
 
-        {/* Theater Screen */}
-        <div className="text-center mb-8">
-          <div className="inline-block px-20 py-4 bg-gradient-to-b from-gray-700 to-gray-900 rounded-t-full shadow-2xl border-t-4 border-x-4 border-gray-600">
-            <p className="text-xl font-bold text-gray-300">SCREEN</p>
+        {/* Screen */}
+        <div className="text-center mb-10">
+          <div className="inline-block px-32 py-6 bg-gradient-to-b from-gray-800 to-black rounded-t-full shadow-2xl border-t-8 border-purple-600 text-2xl font-bold">
+            SCREEN
           </div>
-          <div className="h-1 bg-gradient-to-r from-transparent via-gray-600 to-transparent"></div>
         </div>
 
-        {/* Seat Layout */}
-        <div className="bg-black/40 backdrop-blur-sm rounded-3xl p-8 mb-10 border border-white/10">
-          <div className="space-y-4">
-            {rows.map((row, rowIndex) => (
-              <div key={row} className="flex items-center justify-center gap-2">
-                <span className="w-8 text-right font-bold text-gray-400">{row}</span>
-                <div className="flex gap-2">
-                  {Array.from({ length: seatsPerRow }, (_, i) => {
+        {/* Seat Map */}
+        <div className="bg-black/50 backdrop-blur-xl rounded-3xl p-10 mb-32">
+          <div className="space-y-6">
+            {rows.map((row, rIdx) => (
+              <div key={row} className="flex items-center justify-center gap-3">
+                <span className="w-10 text-xl font-bold text-purple-400">{row}</span>
+                <div className="flex gap-3">
+                  {Array.from({ length: seatsPerRow }).map((_, i) => {
                     const seatNum = i + 1;
-                    const seatId = getSeatId(rowIndex, seatNum);
-                    const isAisle = seatNum === aisleStart || seatNum === aisleStart + 1;
-                    const isSelected = selectedSeats.includes(seatId);
-                    const isBooked = bookedSeats.includes(seatId);
+                    if (seatNum === aisleAfter + 1) return <div key="aisle" className="w-16" />;
 
-                    if (isAisle) {
-                      return <div key={`aisle-${seatNum}`} className="w-10" />;
-                    }
+                    const label = getSeatLabel(rIdx, seatNum);
+                    const isBooked = bookedSeats.includes(label);
+                    const isSelected = selectedSeats.includes(label);
 
                     return (
                       <button
-                        key={seatId}
-                        onClick={() => handleSeatClick(seatId)}
+                        key={label}
+                        onClick={() => handleSeatClick(label)}
                         disabled={isBooked}
-                        className={`relative w-10 h-10 rounded-lg font-medium text-xs transition-all duration-300 transform hover:scale-110 ${
+                        className={`relative w-12 h-12 rounded-lg font-bold transition-all hover:scale-110 ${
                           isBooked
-                            ? "bg-red-900/70 cursor-not-allowed"
+                            ? "bg-red-900/80 cursor-not-allowed"
                             : isSelected
-                            ? "bg-gradient-to-br from-pink-500 to-purple-600 text-white shadow-xl ring-4 ring-purple-400/50"
-                            : "bg-gradient-to-br from-gray-700 to-gray-800 hover:from-cyan-600 hover:to-purple-600 text-gray-300 shadow-md"
+                            ? "bg-gradient-to-br from-pink-500 to-purple-600 ring-4 ring-purple-400 shadow-lg"
+                            : "bg-gray-700 hover:bg-cyan-600"
                         }`}
                       >
-                        {seatNum}
-                        {isBooked && <X className="w-4 h-4 absolute inset-0 m-auto text-red-400" />}
-                        {isSelected && <Check className="w-4 h-4 absolute inset-0 m-auto" />}
+                        {seatNum > aisleAfter ? seatNum - 1 : seatNum}
+                        {isBooked && <X className="w-6 h-6 absolute inset-0 m-auto text-white" />}
                       </button>
                     );
                   })}
                 </div>
-                <span className="w-8 text-left font-bold text-gray-400">{row}</span>
+                <span className="w-10 text-xl font-bold text-purple-400">{row}</span>
               </div>
             ))}
           </div>
 
-          {/* Legend */}
-          <div className="flex justify-center gap-6 mt-8 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-gradient-to-br from-gray-700 to-gray-800 rounded"></div>
-              <span>Available</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-gradient-to-br from-pink-500 to-purple-600 rounded"></div>
-              <span>Selected</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-red-900/70 rounded relative">
-                <X className="w-4 h-4 absolute inset-0 m-auto text-red-400" />
-              </div>
-              <span>Booked</span>
-            </div>
+          <div className="flex justify-center gap-10 mt-10 text-sm">
+            <div className="flex items-center gap-3"><div className="w-8 h-8 bg-gray-700 rounded"></div> Available</div>
+            <div className="flex items-center gap-3"><div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded ring-4 ring-purple-400"></div> Selected</div>
+            <div className="flex items-center gap-3"><div className="w-8 h-8 bg-red-900/80 rounded relative"><X className="w-5 h-5 absolute inset-0 m-auto text-white" /></div> Booked</div>
           </div>
         </div>
 
-        {/* Floating Booking Summary */}
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
+        {/* Floating Summary */}
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-50">
           <div className="bg-white/20 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border border-white/30">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Ticket className="w-6 h-6 text-yellow-400" />
-              Booking Summary
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Selected Seats:</span>
-                <span className="font-semibold">
-                  {selectedSeats.length > 0 ? selectedSeats.map(getSeatLabel).join(", ") : "None"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Showtime:</span>
-                <span className="font-semibold">
-                  {selectedDate} • {selectedTime}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg font-bold pt-2 border-t border-white/20">
-                <span>Total:</span>
+            {error && <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300 text-center">{error}</div>}
+
+            <h3 className="text-2xl font-bold text-center mb-4">Booking Summary</h3>
+            <div className="space-y-3 text-lg">
+              <div className="flex justify-between"><span>Seats</span><span className="font-bold text-cyan-400">{selectedSeats.join(", ") || "None"}</span></div>
+              <div className="flex justify-between"><span>Showtime</span><span className="font-bold">{selectedDate && new Date(selectedDate).toLocaleDateString()} {selectedTime}</span></div>
+              <div className="flex justify-between text-2xl font-bold pt-4 border-t border-white/20">
+                <span>Total</span>
                 <span className="text-yellow-400">${totalPrice}</span>
               </div>
             </div>
+
             <button
               onClick={handleBooking}
-              disabled={selectedSeats.length === 0}
-              className="w-full mt-4 btn btn-lg rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+              disabled={!selectedSeats.length}
+              className="w-full mt-6 py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl font-bold rounded-2xl shadow-xl hover:shadow-purple-500/50 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Ticket className="w-5 h-5" />
-              Confirm & Pay ${totalPrice}
+              {selectedSeats.length ? `Confirm & Pay $${totalPrice}` : "Select Seats First"}
             </button>
           </div>
         </div>

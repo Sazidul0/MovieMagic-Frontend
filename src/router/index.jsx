@@ -20,6 +20,9 @@ import AddMoviePage from '../pages/admin/AddMoviePage';
 
 // Utility Page
 import NotFoundPage from '../components/common/NotFoundPage';
+import AdminUsersPage from '../pages/admin/AdminUsersPage';
+import AdminMoviesPage from '../pages/admin/AdminMoviesPage';
+import AdminBookingsPage from '../pages/admin/AdminBookingPage';
 
 
 export const router = createBrowserRouter([
@@ -44,6 +47,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'add-movie', element: <AddMoviePage /> },
+      { path: 'users', element: <AdminUsersPage /> },
+      { path: 'movies', element: <AdminMoviesPage /> },
+      { path: 'bookings', element: <AdminBookingsPage /> },
     ],
   },
 ]);

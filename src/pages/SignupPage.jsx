@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { registerUser } from "../services/api"; // Your real API function
 import { Mail, Lock, User, Eye, EyeOff, CheckCircle, AlertCircle, Film } from "lucide-react";
 
 const SignupPage = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+ mobile:"",
     password: "",
     confirmPassword: "",
   });
@@ -19,7 +21,7 @@ const SignupPage = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error on change
+    // Clear specific error when typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -29,8 +31,10 @@ const SignupPage = () => {
     const newErrors = {};
 
     if (!formData.name.trim()) newErrors.name = "Name is required";
-    if (!formData.email.includes("@")) newErrors.email = "Valid email is required";
-    if (formData.password.length < 6) newErrors.password = "Password must be 6+ characters";
+    if (!formData.email.includes("@") || !formData.email.includes(".")) 
+      newErrors.email = "Enter a valid email";
+    if (formData.password.length < 6) 
+      newErrors.password = "Password must be at least 6 characters";
     if (formData.password !== formData.confirmPassword)
       newErrors.confirmPassword = "Passwords do not match";
 
@@ -40,7 +44,7 @@ const SignupPage = () => {
 
   const getPasswordStrength = () => {
     const { password } = formData;
-    if (password.length === 0) return 0;
+    if (!password) return 0;
     let strength = 0;
     if (password.length >= 6) strength += 1;
     if (password.length >= 8) strength += 1;
@@ -55,28 +59,44 @@ const SignupPage = () => {
     if (!validateForm()) return;
 
     setLoading(true);
+    setErrors({});
     setSuccess(false);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    try {
+      // Call real API
+      await registerUser({
+        name: formData.name.trim(),
+        email: formData.email.toLowerCase().trim(),
+        password: formData.password,
+      });
 
-    // In real app: save to backend / localStorage
-    // For demo: just show success
-    setLoading(false);
-    setSuccess(true);
-
-    setTimeout(() => {
-      navigate("/login");
-    }, 1500);
+      // Success!
+      setSuccess(true);
+      setTimeout(() => {
+        navigate("/login");
+      }, 1800);
+    } catch (err) {
+      console.error("Signup failed:", err);
+      setErrors({ submit: err.message || "Failed to create account. Try again." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const strength = getPasswordStrength();
   const strengthLabels = ["", "Weak", "Fair", "Good", "Strong", "Very Strong"];
-  const strengthColors = ["", "bg-red-500", "bg-orange-500", "bg-yellow-500", "bg-lime-500", "bg-green-500"];
+  const strengthColors = [
+    "",
+    "bg-red-500",
+    "bg-orange-500",
+    "bg-yellow-500",
+    "bg-lime-500",
+    "bg-green-500",
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-pink-900 flex items-center justify-center p-4 overflow-hidden">
-      {/* Animated Background */}
+      {/* Animated Background Blobs */}
       <div className="absolute inset-0">
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600 rounded-full filter blur-3xl opacity-20 animate-pulse"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-pink-600 rounded-full filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
@@ -84,7 +104,7 @@ const SignupPage = () => {
 
       <div className="relative z-10 w-full max-w-4xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-          {/* Left: Hero Text */}
+          {/* Left: Hero Section */}
           <div className="hidden lg:block text-white">
             <div className="flex items-center gap-3 mb-6">
               <Film className="w-12 h-12 text-yellow-400" />
@@ -93,26 +113,20 @@ const SignupPage = () => {
               </h1>
             </div>
             <h2 className="text-4xl font-bold mb-4">Join the Magic!</h2>
-            <p className="text-lg text-gray-300 leading-relaxed">
+            <p className="text-lg text-gray-300 leading-relaxed mb-8">
               Create an account to save your favorite movies, track bookings, and enjoy a seamless cinematic experience.
             </p>
-            <div className="mt-8 space-y-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-400" />
-                <span className="text-sm text-gray-300">Secure & Private</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-400" />
-                <span className="text-sm text-gray-300">Instant Access</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-400" />
-                <span className="text-sm text-gray-300">Exclusive Offers</span>
-              </div>
+            <div className="space-y-4">
+              {["Secure & Private", "Instant Access", "Exclusive Offers"].map((item, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
+                  <span className="text-gray-300">{item}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Right: Signup Card */}
+          {/* Right: Signup Form */}
           <div className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 border border-white/20">
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full mb-4">
@@ -122,11 +136,19 @@ const SignupPage = () => {
               <p className="text-sm text-gray-300 mt-2">Fill in your details to get started</p>
             </div>
 
+            {/* Global Error */}
+            {errors.submit && (
+              <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-300 animate-shake">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm">{errors.submit}</span>
+              </div>
+            )}
+
             {/* Success Message */}
             {success && (
               <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-xl flex items-center gap-3 text-green-300">
                 <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                <span className="text-sm">Account created! Redirecting to login...</span>
+                <span className="text-sm">Account created successfully! Redirecting to login...</span>
               </div>
             )}
 
@@ -140,9 +162,10 @@ const SignupPage = () => {
                   placeholder="Full Name"
                   value={formData.name}
                   onChange={handleChange}
+                  disabled={loading}
                   className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all backdrop-blur-sm ${
                     errors.name ? "border-red-500 focus:ring-red-500" : "border-white/30"
-                  }`}
+                  } disabled:opacity-70`}
                 />
                 {errors.name && (
                   <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
@@ -160,9 +183,10 @@ const SignupPage = () => {
                   placeholder="Email Address"
                   value={formData.email}
                   onChange={handleChange}
+                  disabled={loading}
                   className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all backdrop-blur-sm ${
                     errors.email ? "border-red-500 focus:ring-red-500" : "border-white/30"
-                  }`}
+                  } disabled:opacity-70`}
                 />
                 {errors.email && (
                   <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
@@ -180,13 +204,15 @@ const SignupPage = () => {
                   placeholder="Password"
                   value={formData.password}
                   onChange={handleChange}
+                  disabled={loading}
                   className={`w-full pl-12 pr-12 py-4 bg-white/10 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all backdrop-blur-sm ${
                     errors.password ? "border-red-500 focus:ring-red-500" : "border-white/30"
-                  }`}
+                  } disabled:opacity-70`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -202,13 +228,15 @@ const SignupPage = () => {
                   placeholder="Confirm Password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  disabled={loading}
                   className={`w-full pl-12 pr-12 py-4 bg-white/10 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all backdrop-blur-sm ${
                     errors.confirmPassword ? "border-red-500 focus:ring-red-500" : "border-white/30"
-                  }`}
+                  } disabled:opacity-70`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  disabled={loading}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -220,37 +248,47 @@ const SignupPage = () => {
                 )}
               </div>
 
-              {/* Password Strength */}
+              {/* Password Strength Indicator */}
               {formData.password && (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <div className="flex gap-1">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <div
                         key={i}
-                        className={`flex-1 h-2 rounded-full transition-all ${
+                        className={`flex-1 h-2 rounded-full transition-all duration-300 ${
                           i < strength ? strengthColors[strength] : "bg-white/20"
                         }`}
                       />
                     ))}
                   </div>
                   <p className="text-xs text-gray-400 text-right">
-                    {strengthLabels[strength]}
+                    Strength: <span className="font-medium">{strengthLabels[strength]}</span>
                   </p>
                 </div>
               )}
 
-              {/* Submit */}
+              {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || success}
                 className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
               >
                 {loading ? (
-                  <span className="loading loading-spinner loading-sm"></span>
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Creating Account...
+                  </>
+                ) : success ? (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Success!
+                  </>
                 ) : (
-                  <User className="w-5 h-5" />
+                  <>
+                    <User className="w-5 h-5" />
+                    Sign Up
+                  </>
                 )}
-                {loading ? "Creating Account..." : "Sign Up"}
               </button>
             </form>
 
@@ -261,21 +299,29 @@ const SignupPage = () => {
               <div className="flex-1 h-px bg-white/20"></div>
             </div>
 
-            
-
             {/* Login Link */}
-            <p className="text-center mt-6 text-sm text-gray-300">
+            <p className="text-center text-sm text-gray-300">
               Already have an account?{" "}
               <Link
                 to="/login"
                 className="text-purple-400 font-semibold hover:text-purple-300 transition-colors"
               >
-                Login
+                Login here
               </Link>
             </p>
           </div>
         </div>
       </div>
+
+      {/* Shake Animation */}
+      <style jsx>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+          20%, 40%, 60%, 80% { transform: translateX(4px); }
+        }
+        .animate-shake { animation: shake 0.5s ease-in-out; }
+      `}</style>
     </div>
   );
 };
