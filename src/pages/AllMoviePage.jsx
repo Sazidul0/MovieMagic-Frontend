@@ -140,6 +140,7 @@ const AllMoviePage = () => {
   const [movies, setMovies] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
+  const [minRating, setMinRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -174,7 +175,7 @@ const AllMoviePage = () => {
     return ["All", ...new Set(genreList)].sort();
   }, [movies]);
 
-  // Filter movies based on search and genre
+  // Filter movies based on search, genre, and rating
   const filteredMovies = useMemo(() => {
     if (!Array.isArray(movies)) return [];
 
@@ -187,9 +188,12 @@ const AllMoviePage = () => {
         selectedGenre === "All" ||
         movie.genre?.includes(selectedGenre);
 
-      return matchesSearch && matchesGenre;
+      const movieRating = parseFloat(movie.rating) || 0;
+      const matchesRating = movieRating >= minRating;
+
+      return matchesSearch && matchesGenre && matchesRating;
     });
-  }, [movies, searchTerm, selectedGenre]);
+  }, [movies, searchTerm, selectedGenre, minRating]);
 
   // Loading State
   if (loading) {
@@ -236,35 +240,57 @@ const AllMoviePage = () => {
 
         {/* Search & Filter */}
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 mb-10 shadow-2xl border border-white/20">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search movies..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
-              />
-            </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search movies..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                />
+              </div>
 
-            <div className="relative">
-              <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <select
-                value={selectedGenre}
-                onChange={(e) => setSelectedGenre(e.target.value)}
-                className="pl-12 pr-10 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer"
-              >
-                {genres.map((g) => (
-                  <option key={g} value={g} className="bg-gray-800 text-white">
-                    {g}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+              <div className="relative">
+                <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <select
+                  value={selectedGenre}
+                  onChange={(e) => setSelectedGenre(e.target.value)}
+                  className="pl-12 pr-10 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer"
+                >
+                  {genres.map((g) => (
+                    <option key={g} value={g} className="bg-gray-800 text-white">
+                      {g}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="relative">
+                <Star className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <select
+                  value={minRating}
+                  onChange={(e) => setMinRating(parseFloat(e.target.value))}
+                  className="pl-12 pr-10 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer"
+                >
+                  <option value={0} className="bg-gray-800 text-white">All Ratings</option>
+                  <option value={6} className="bg-gray-800 text-white">6.0+</option>
+                  <option value={7} className="bg-gray-800 text-white">7.0+</option>
+                  <option value={8} className="bg-gray-800 text-white">8.0+</option>
+                  <option value={9} className="bg-gray-800 text-white">9.0+</option>
+                </select>
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
@@ -290,6 +316,7 @@ const AllMoviePage = () => {
               onClick={() => {
                 setSearchTerm("");
                 setSelectedGenre("All");
+                setMinRating(0);
               }}
               className="mt-4 text-purple-400 hover:text-purple-300 underline"
             >

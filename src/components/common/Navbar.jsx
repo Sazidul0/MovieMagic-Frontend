@@ -12,8 +12,18 @@ const Navbar = () => {
     const handleStorageChange = () => {
       setUser(JSON.parse(localStorage.getItem("user") || "null"));
     };
+    
+    const handleUserLoggedIn = () => {
+      setUser(JSON.parse(localStorage.getItem("user") || "null"));
+    };
+    
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener("userLoggedIn", handleUserLoggedIn);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("userLoggedIn", handleUserLoggedIn);
+    };
   }, []);
 
   const handleLogout = () => {

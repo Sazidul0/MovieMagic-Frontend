@@ -112,7 +112,7 @@ const MovieDetailsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black text-white overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black text-white overflow-hidden mt-16">
       {/* Hero Backdrop */}
       <div
         className="relative h-screen flex items-end pb-20 bg-cover bg-center bg-no-repeat"

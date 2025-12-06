@@ -28,6 +28,9 @@ const LoginPage = () => {
         localStorage.setItem("token", userData.token);
       }
 
+      // Dispatch custom event to update navbar in the same tab
+      window.dispatchEvent(new Event("userLoggedIn"));
+
       // Success! Navigate based on role
       if (userData.role === "admin") {
         navigate("/admin", { replace: true });

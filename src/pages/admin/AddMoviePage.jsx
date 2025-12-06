@@ -71,7 +71,7 @@ const AddMoviePage = () => {
         duration: formData.duration.trim(),
         releaseDate: formData.releaseDate,
         format: formData.format,
-        showtimes, // ← This is now CORRECT for your new backend!
+        showtimes, 
       };
 
       await addMovie(movieData);
