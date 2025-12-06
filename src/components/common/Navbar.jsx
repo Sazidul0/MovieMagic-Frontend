@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, LogOut, User, Shield, Film, Users, ClipboardList, Ticket, Settings } from "lucide-react";
+import { Menu, X, LogOut, User, Shield, Film, Users, ClipboardList, Ticket, Settings, ShoppingCart } from "lucide-react";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user") || "null"));
 
@@ -16,13 +17,19 @@ const Navbar = () => {
     const handleUserLoggedIn = () => {
       setUser(JSON.parse(localStorage.getItem("user") || "null"));
     };
+
+    const handleCartUpdate = (e) => {
+      setCartCount(e.detail?.count || 0);
+    };
     
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("userLoggedIn", handleUserLoggedIn);
+    window.addEventListener("cartUpdated", handleCartUpdate);
     
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("userLoggedIn", handleUserLoggedIn);
+      window.removeEventListener("cartUpdated", handleCartUpdate);
     };
   }, []);
 
@@ -70,6 +77,16 @@ const Navbar = () => {
       </div>
 
       <div className="navbar-end flex items-center justify-end gap-4">
+        {/* Cart Icon */}
+        <Link to="/cart" className="relative p-2 text-white hover:text-pink-400 transition-colors">
+          <ShoppingCart className="w-6 h-6" />
+          {cartCount > 0 && (
+            <span className="absolute top-0 right-0 bg-pink-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              {cartCount > 9 ? "9+" : cartCount}
+            </span>
+          )}
+        </Link>
+
         {user && (
           <div className="dropdown dropdown-end">
             {/* AVATAR */}

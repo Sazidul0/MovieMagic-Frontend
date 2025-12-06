@@ -9,6 +9,7 @@ import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
 import BookingPage from '../pages/BookingPage';
 import AllMoviePage from '../pages/AllMoviePage';
+import CartPage from '../pages/CartPage';
 
 // User-specific pages
 import MyProfilePage from '../pages/MyProfilePage'; // New
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: '/movies', element: <AllMoviePage /> },
       { path: '/movie/:id', element: <MovieDetailsPage /> },
       { path: '/booking/:id', element: <BookingPage /> },
+      { path: '/cart', element: <CartPage /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/signup', element: <SignupPage /> },
       { path: '/profile', element: <MyProfilePage /> }, 

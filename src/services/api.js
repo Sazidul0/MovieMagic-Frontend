@@ -3,28 +3,43 @@ const API_BASE_URL = 'http://localhost:5000/api';
 
 // A helper function to handle API requests and responses
 const request = async (url, options = {}) => {
-  const user = JSON.parse(localStorage.getItem('user'));
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
 
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
 
-  if (user && user.token) {
-    headers.Authorization = `Bearer ${user.token}`;
+    if (user && user.token) {
+      headers.Authorization = `Bearer ${user.token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+      }
+      throw new Error(errorData.message || `Error: ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    // Better error handling for network errors
+    if (error instanceof TypeError) {
+      if (error.message === 'Failed to fetch') {
+        throw new Error('Network error - Backend server may not be running on http://localhost:5000');
+      }
+    }
+    throw error;
   }
-
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Something went wrong');
-  }
-
-  return response.json();
 };
 
 /* ----------------------------- USER SERVICES ----------------------------- */
@@ -47,7 +62,7 @@ export const getAllMovies = () => request('/movies');
 
 export const getMovieById = (id) => request(`/movies/${id}`);
 
-/* ----------------------------- BOOKING SERVICES ----------------------------- */
+/* ----------------------------- BOOKING SERVICES (OLD - Still supported) ----------------------------- */
 export const getUserBookings = () => request('/bookings/mybookings');
 
 export const createBooking = (bookingData) =>
@@ -63,6 +78,82 @@ export const getBookedSeats = (movieId, date, time) => {
     )}&time=${encodeURIComponent(time)}`
   );
 };
+
+/* ----------------------------- CART SERVICES (NEW) ----------------------------- */
+export const addToCart = (cartData) =>
+  request('/cart/add', {
+    method: 'POST',
+    body: JSON.stringify(cartData),
+  });
+
+export const getCart = async () => {
+  // Debug: Check if user is logged in
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  if (!user || !user.token) {
+    throw new Error('User not authenticated');
+  }
+  
+  try {
+    const response = await request('/cart');
+    
+    // If cart items exist but movie is just an ID, fetch the full movie details
+    if (response.cart?.items?.length > 0) {
+      const itemsWithStringMovieId = response.cart.items.filter(
+        item => typeof item.movie === 'string'
+      );
+      
+      if (itemsWithStringMovieId.length > 0) {
+        // Fetch movie details for all items with string movie IDs
+        const updatedItems = await Promise.all(
+          response.cart.items.map(async (item) => {
+            if (typeof item.movie === 'string') {
+              try {
+                const movieData = await getMovieById(item.movie);
+                return {
+                  ...item,
+                  movie: movieData
+                };
+              } catch (err) {
+                // Return item as-is even if movie fetch fails
+                return item;
+              }
+            }
+            // Already has movie object, return as-is
+            return item;
+          })
+        );
+        
+        response.cart.items = updatedItems;
+      }
+    }
+    
+    return response;
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const updateCartItem = (itemId, updateData) =>
+  request(`/cart/update/${itemId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updateData),
+  });
+
+export const removeFromCart = (itemId) =>
+  request(`/cart/remove/${itemId}`, {
+    method: 'DELETE',
+  });
+
+export const clearCart = () =>
+  request('/cart/clear', {
+    method: 'DELETE',
+  });
+
+export const checkoutCart = (selectedItems) =>
+  request('/cart/checkout', {
+    method: 'POST',
+    body: JSON.stringify({ selectedItems }),
+  });
 
 /* ----------------------------- ADMIN SERVICES ----------------------------- */
 

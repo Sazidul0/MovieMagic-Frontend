@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Navigate, Link } from "react-router-dom";
-import { getUserBookings } from "../services/api"; // Your real API function
+import { getUserBookings, getMovieById } from "../services/api";
 import { Calendar, Clock, Ticket, Film } from "lucide-react";
 
 const MyBookingsPage = () => {
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user") || "null"));
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const user = JSON.parse(localStorage.getItem("user"));
 
   // Redirect if not logged in
   if (!user) {
@@ -20,8 +19,38 @@ const MyBookingsPage = () => {
       try {
         setLoading(true);
         setError("");
-        const data = await getUserBookings(); // Assumes it includes movie details
-        setBookings(Array.isArray(data) ? data : []);
+        const data = await getUserBookings();
+        
+        // Fetch movie details if they're missing (similar to cart)
+        let bookingsData = Array.isArray(data) ? data : [];
+        
+        if (bookingsData.length > 0) {
+          const bookingsNeedingMovieData = bookingsData.filter(
+            booking => typeof booking.movie === 'string'
+          );
+          
+          if (bookingsNeedingMovieData.length > 0) {
+            // Fetch movie details for bookings that don't have them
+            bookingsData = await Promise.all(
+              bookingsData.map(async (booking) => {
+                if (typeof booking.movie === 'string') {
+                  try {
+                    const movieData = await getMovieById(booking.movie);
+                    return {
+                      ...booking,
+                      movie: movieData
+                    };
+                  } catch (err) {
+                    return booking;
+                  }
+                }
+                return booking;
+              })
+            );
+          }
+        }
+        
+        setBookings(bookingsData);
       } catch (err) {
         console.error("Failed to fetch bookings:", err);
         setError("Failed to load your bookings. Please try again later.");
@@ -112,7 +141,10 @@ const MyBookingsPage = () => {
                     <div className="md:col-span-2 p-8 flex flex-col justify-between">
                       <div>
                         <h2 className="text-3xl font-bold text-white mb-4">
-                          {movie.title || "Unknown Movie"}
+                          {typeof movie === 'object' && movie?.title 
+                            ? movie.title 
+                            : `Movie (ID: ${typeof booking.movie === 'string' ? booking.movie : booking.movie?._id || 'Unknown'})`
+                          }
                         </h2>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-300">

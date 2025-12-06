@@ -1,8 +1,8 @@
 // src/pages/BookingPage.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, Navigate, useNavigate, Link } from "react-router-dom";
-import { getMovieById, createBooking, getBookedSeats } from "../services/api";
-import { Calendar, Clock, Ticket, ChevronLeft, AlertCircle, X } from "lucide-react"; // ← X WAS MISSING!
+import { getMovieById, addToCart, getBookedSeats } from "../services/api";
+import { Calendar, Clock, Ticket, ChevronLeft, AlertCircle, X, ShoppingCart } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const BookingPage = () => {
@@ -82,17 +82,25 @@ const handleBooking = async () => {
     return;
   }
 
-  const bookingData = {
+  const seatPrice = 15; // Price per seat
+  const cartData = {
     movie: movie._id,
-    bookingDate: selectedDate,   // ← This must be "bookingDate"
-    showtime: selectedTime,      // ← This must be "showtime"
+    bookingDate: selectedDate,
+    showtime: selectedTime,
     seats: selectedSeats,
-    totalPrice: selectedSeats.length * 15,
+    pricePerSeat: seatPrice,
   };
 
   try {
     setError("");
-    await createBooking(bookingData);
+    const response = await addToCart(cartData);
+
+    // Dispatch event to update cart count in navbar
+    window.dispatchEvent(
+      new CustomEvent("cartUpdated", {
+        detail: { count: response.cart?.items?.length || 0 }
+      })
+    );
 
     confetti({
       particleCount: 200,
@@ -101,10 +109,10 @@ const handleBooking = async () => {
       colors: ["#a78bfa", "#ec4899", "#22d3ee", "#fbbf24"],
     });
 
-    setTimeout(() => navigate("/bookings"), 1000);
+    setTimeout(() => navigate("/cart"), 1000);
   } catch (err) {
-    console.error("Booking error:", err);
-    setError(err.message || "Booking failed. Try again.");
+    console.error("Add to cart error:", err);
+    setError(err.message || "Failed to add to cart. Try again.");
   }
 };
   if (!user) return <Navigate to="/login" replace />;
@@ -238,7 +246,7 @@ const handleBooking = async () => {
           <div className="bg-white/20 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border border-white/30">
             {error && <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300 text-center">{error}</div>}
 
-            <h3 className="text-2xl font-bold text-center mb-4">Booking Summary</h3>
+            <h3 className="text-2xl font-bold text-center mb-4"></h3>
             <div className="space-y-3 text-lg">
               <div className="flex justify-between"><span>Seats</span><span className="font-bold text-cyan-400">{selectedSeats.join(", ") || "None"}</span></div>
               <div className="flex justify-between"><span>Showtime</span><span className="font-bold">{selectedDate && new Date(selectedDate).toLocaleDateString()} {selectedTime}</span></div>
@@ -251,9 +259,10 @@ const handleBooking = async () => {
             <button
               onClick={handleBooking}
               disabled={!selectedSeats.length}
-              className="w-full mt-6 py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl font-bold rounded-2xl shadow-xl hover:shadow-purple-500/50 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full mt-6 py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl font-bold rounded-2xl shadow-xl hover:shadow-purple-500/50 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {selectedSeats.length ? `Confirm & Pay $${totalPrice}` : "Select Seats First"}
+              <ShoppingCart className="w-5 h-5" />
+              {selectedSeats.length ? `Add to Cart - $${totalPrice}` : "Select Seats First"}
             </button>
           </div>
         </div>
