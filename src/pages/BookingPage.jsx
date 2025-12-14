@@ -241,12 +241,11 @@ const handleBooking = async () => {
           </div>
         </div>
 
-        {/* Floating Summary */}
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-50">
-          <div className="bg-white/20 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border border-white/30">
-            {error && <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300 text-center">{error}</div>}
+        {/* Floating Summary (moved to bottom-right) */}
+        <div className="fixed bottom-6 right-6 w-full max-w-sm px-4 z-50">
+          <div className="bg-white/20 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border border-white/30 text-left">
+            {error && <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300">{error}</div>}
 
-            <h3 className="text-2xl font-bold text-center mb-4"></h3>
             <div className="space-y-3 text-lg">
               <div className="flex justify-between"><span>Seats</span><span className="font-bold text-cyan-400">{selectedSeats.join(", ") || "None"}</span></div>
               <div className="flex justify-between"><span>Showtime</span><span className="font-bold">{selectedDate && new Date(selectedDate).toLocaleDateString()} {selectedTime}</span></div>
@@ -259,7 +258,7 @@ const handleBooking = async () => {
             <button
               onClick={handleBooking}
               disabled={!selectedSeats.length}
-              className="w-full mt-6 py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl font-bold rounded-2xl shadow-xl hover:shadow-purple-500/50 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full mt-6 py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg font-bold rounded-2xl shadow-xl hover:shadow-purple-500/50 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <ShoppingCart className="w-5 h-5" />
               {selectedSeats.length ? `Add to Cart - $${totalPrice}` : "Select Seats First"}
