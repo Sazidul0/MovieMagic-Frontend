@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getMovieById } from "../services/api";
+import FeedbackForm from '../components/FeedbackForm';
+import FeedbackList from '../components/FeedbackList';
 import { Star, Clock, Calendar, Play, Users, Film, ChevronLeft, AlertCircle, Ticket } from "lucide-react";
 
 const MovieDetailsPage = () => {
@@ -120,6 +122,21 @@ const MovieDetailsPage = () => {
           backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.9) 100%), url(${movie.posterUrl || "https://via.placeholder.com/1920x1080"})`,
         }}
       >
+      {/* Reviews link */}
+      <section className="py-8 px-6 bg-black/60">
+        <div className="container mx-auto max-w-4xl">
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-semibold text-white">Reviews & Feedback</h3>
+            <a
+              href={`/movie/${movie._id}/feedback`}
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg shadow hover:opacity-90"
+            >
+              View Reviews & Leave Feedback
+            </a>
+          </div>
+        </div>
+      </section>
+
         <div className="container mx-auto px-6 flex flex-col lg:flex-row gap-10 items-end">
           {/* Poster */}
           <div className="flex-shrink-0">

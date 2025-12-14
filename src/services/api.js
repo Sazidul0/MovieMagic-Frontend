@@ -189,3 +189,46 @@ export const deleteMovie = (movieId) => {
     method: 'DELETE',
   });
 };
+
+/* ----------------------------- FEEDBACK SERVICES ----------------------------- */
+
+// Submit feedback (rating and/or comment) - protected
+export const submitFeedback = (feedbackData) =>
+  request('/feedback', {
+    method: 'POST',
+    body: JSON.stringify(feedbackData),
+  });
+
+// Get all feedbacks (public)
+export const getAllFeedbacks = () => request('/feedback');
+
+// Get feedbacks for a single movie (public)
+export const getFeedbacksForMovie = (movieId) => request(`/feedback/movie/${movieId}`);
+
+// Get current user's feedbacks (protected)
+export const getUserFeedbacks = () => request('/feedback/user');
+
+// Delete feedback (admin)
+export const deleteFeedback = (feedbackId) =>
+  request(`/feedback/${feedbackId}`, {
+    method: 'DELETE',
+  });
+
+// Get payment status (owner or admin) - protected
+export const getPaymentStatus = (paymentId) => request(`/payment/${paymentId}`);
+
+/* ----------------------------- PAYMENT (STRIPE - TEST MODE) ----------------------------- */
+
+// Create Stripe PaymentIntent (server returns clientSecret)
+export const createStripePayment = (paymentData) =>
+  request('/payment/stripe/create', {
+    method: 'POST',
+    body: JSON.stringify(paymentData),
+  });
+
+// Verify Stripe payment (server-side check)
+export const verifyStripePayment = (verifyData) =>
+  request('/payment/stripe/verify', {
+    method: 'POST',
+    body: JSON.stringify(verifyData),
+  });

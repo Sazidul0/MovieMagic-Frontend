@@ -14,6 +14,7 @@ import CartPage from '../pages/CartPage';
 // User-specific pages
 import MyProfilePage from '../pages/MyProfilePage'; // New
 import MyBookingsPage from '../pages/MyBookingsPage'; // New
+import FeedbackPage from '../pages/FeedbackPage';
 
 // Admin Pages
 import DashboardPage from '../pages/admin/DashboardPage';
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/movies', element: <AllMoviePage /> },
       { path: '/movie/:id', element: <MovieDetailsPage /> },
+      { path: '/movie/:id/feedback', element: <FeedbackPage /> },
       { path: '/booking/:id', element: <BookingPage /> },
       { path: '/cart', element: <CartPage /> },
       { path: '/login', element: <LoginPage /> },

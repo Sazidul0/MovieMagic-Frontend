@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { getCart, removeFromCart, updateCartItem, checkoutCart, clearCart } from "../services/api";
+import StripePayment from '../components/StripePayment';
 import { Trash2, Plus, Minus, ShoppingCart, ChevronLeft, Clock, Calendar, AlertCircle, RefreshCw } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -312,23 +313,53 @@ const CartPage = () => {
                   <span>${cartTotal}</span>
                 </div>
 
-                <button
-                  onClick={handleCheckout}
-                  disabled={selectedItems.length === 0 || checkingOut}
-                  className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold rounded-2xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {checkingOut ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="w-5 h-5" />
-                      Proceed to Checkout
-                    </>
-                  )}
-                </button>
+                {/* Stripe payment replaces manual checkout — use Stripe widget below to pay */}
+                {selectedItems.length === 0 ? (
+                  <div className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold rounded-2xl text-center">
+                    Select items to enable payment
+                  </div>
+                ) : (
+                  <div className="w-full py-2 text-center text-sm text-gray-300 mb-2">Pay securely with Stripe to complete booking.</div>
+                )}
+
+                {/* Stripe Test Payment (optional) */}
+                <div className="mt-4">
+                  <StripePayment
+                    amount={cartTotal}
+                    currency={'usd'}
+                    onSuccess={async (payment) => {
+                      // After Stripe confirms payment, create bookings for selected items
+                      try {
+                        setCheckingOut(true);
+                        setError('');
+                        await checkoutCart(selectedItems);
+
+                        confetti({
+                          particleCount: 200,
+                          spread: 80,
+                          origin: { y: 0.6 },
+                          colors: ["#a78bfa", "#ec4899", "#22d3ee", "#fbbf24"],
+                        });
+
+                        // Update cart count to 0
+                        window.dispatchEvent(
+                          new CustomEvent('cartUpdated', {
+                            detail: { count: 0 }
+                          })
+                        );
+
+                        setCart({ items: [], totalCartPrice: 0 });
+                        setSelectedItems([]);
+                        setTimeout(() => navigate('/bookings'), 1200);
+                      } catch (err) {
+                        console.error('Checkout after payment failed:', err);
+                        setError(err.message || 'Failed to complete booking after payment.');
+                      } finally {
+                        setCheckingOut(false);
+                      }
+                    }}
+                  />
+                </div>
 
                 <p className="text-sm text-gray-400 text-center mt-4">
                   {selectedItems.length === 0
